@@ -1,0 +1,157 @@
+−# スプシを召喚するコード
+url = "https://docs.google.com/spreadsheets/d/1zYMT1wxoNGQo8at8bB4fS4dAH-dvR4PEnS37MaZWcHM/"
+ss = gc.open_by_url(url)
+target = ss.worksheet("シート1")
+cars = ss.worksheet("車両性能スプレットシート")
+from genericpath import isfile
+
+import time
+def wait():
+  time.sleep(1/5)
+
+def setcolumn(x):
+  list=['E','F','G','H','I','J','K','L','M','N','O','P']#縦取得関数
+  global column
+  column=list[x-1]
+
+def limitset(x):
+  x=str(x)
+  value=target.get('Q'+x+':AH'+x)[0]
+  i=0
+  while i<18:
+    value[i]=int(value[i])
+    i=i+1
+  wait()
+  change=[]
+  i=0
+  while i<=5:
+    if value[i*3]!=0:
+      change.append(int(value[i*3]))
+      change.append(int(value[i*3+1]))
+      change.append(int(value[i*3+2]))
+    i=i+1
+  global limitlist
+  global limitlocation
+  global limitmax
+  limitlist=[]
+  limitlocation=[]
+  limitmax=[]
+  i=0
+  lenlimit=len(change)/3
+  while i<=lenlimit-1:
+    a=change.pop(0)
+    limitlist.append(a)
+    a=change.pop(0)
+    limitlocation.append(a)
+    a=change.pop(0)
+    limitmax.append(a)
+    i=i+1                                     #制限取得関数
+
+def powwerset(speed,bacespeed,bacepowwer):
+  global powwer
+  if speed<=bacespeed:
+    powwer=bacepowwer
+  else:
+    powwer=bacepowwer*bacespeed/speed               #加速度計算関数
+
+def uptimeset(speed,powwer):
+  global upfar
+  global uptime
+  uptime=0.2/powwer
+  upfar=uptime*speed/3.6
+
+def downtimeset(speed,breaking):
+  global downfar
+  global downtime
+  downtime=0.2/breaking
+  downfar=downtime*(speed+0.2)/3.6
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#car_bacespeed=[79.7,64,55.3]
+#car_bacepowwer=[2.3,2.6,3.0]                          #車両性能リスト
+#car_cut=[195,155,125]
+#car_break=[4,4,4.5]
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+i=1
+while i<=12:
+  setcolumn(i)
+  car=target.acell(str(column)+'2').value                 #車両種類取得
+  wait()
+  car_bacespeed=float(cars.acell('B'+str(car)).value)
+  wait()
+  car_bacepowwer=float(cars.acell('C'+str(car)).value)
+  wait()
+  car_cut=int(cars.acell('D'+str(car)).value)
+  wait()
+  car_break=float(cars.acell('E'+str(car)).value)
+  wait()
+  kind=int(target.acell(str(column)+'3').value)                 #車両種別取得
+  wait()
+  line=4
+
+  while True:
+    finish=int(target.acell('D'+str(line)).value)
+    wait()
+    if finish==0:
+      print(str(i)+'列')
+      break                                               #列終了検知
+    limitset(line)
+    print(limitlist)
+    print(limitlocation)
+    print(limitmax)
+    times=len(limitlocation)-1
+    sumtime=0                                              #制限読み込み
+    if kind==1:
+      limitlist[0]=0.2
+      limitlist[len(limitlist)-1]=0.2
+    elif kind==2:
+      limitlist[len(limitlist)-1]=0.2
+    elif kind==3:
+      limitlist[0]=0.2                                    #初、着速度修正
+    while times>0:
+      start=limitlist[times-1]-3
+      end=limitlist[times]-3
+      distance=limitlocation[times]-limitlocation[times-1]
+      maxspeed=limitmax[times-1]-3
+      runtime=0                                            #単位区間設定
+      if maxspeed>car_cut:
+        maxspeed=car_cut
+      if start>maxspeed:
+        start=maxspeed
+      if end>maxspeed:
+        end=maxspeed                                       #制限速度超過修正
+      a=[start,end]
+      speed=(min(a))
+      while True:
+        if distance/speed*3.6<=10 or speed>=maxspeed:
+          runtime=runtime+distance/speed*3.6              #均速計算
+          print('runtime is '+str(runtime))
+          break                                           #計算終了検知
+        powwerset(speed,car_bacespeed,car_bacepowwer)
+        time_=0
+        far=0
+        if speed>=start:
+          uptimeset(speed,powwer)
+          time_=time_+uptime
+          far=far+upfar                                  #加速計算
+        if speed>=end:
+          downtimeset(speed,car_break)
+          time_=time_+downtime
+          far=far+downfar                                #減速計算
+        distance=distance-far
+        runtime=runtime+time_
+        speed=speed+0.2
+      if speed<start or speed<end:
+        sumtime=-1
+        break                                           #加減速不足検知
+      sumtime=sumtime+runtime
+      times=times-1
+    if sumtime<0:
+      answer='!!'
+    else:
+      answer=str(5+((runtime-1)//5)*5)
+    print(line)
+    target.update_acell(str(column)+str(line),answer) #出力
+    line=line+1
+  i=i+1
