@@ -1,3 +1,5 @@
+#大昔のソースコードです、見ないでください
+#This is a very old code, please not to see
 −# スプシを召喚するコード
 url = "https://docs.google.com/spreadsheets/d/1zYMT1wxoNGQo8at8bB4fS4dAH-dvR4PEnS37MaZWcHM/"
 ss = gc.open_by_url(url)
